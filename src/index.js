@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const path = require("path");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./config/swagger');
 require("dotenv").config();
 
 const tenantController = require("./controllers/tenantController");
@@ -26,6 +28,9 @@ app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { explorer: true }));
 
 // Static files
 app.use(express.static(path.join(__dirname, "../public")));
@@ -77,4 +82,5 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Tenant Manager API running on port ${PORT}`);
   console.log(`Open http://localhost:${PORT} in your browser`);
+  console.log(`API Documentation available at http://localhost:${PORT}/api-docs`);
 });
