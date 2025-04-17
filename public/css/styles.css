@@ -1,0 +1,20 @@
+/* Estilos adicionais além do Tailwind CSS */
+.status-active {
+    background-color: #DEF7EC;
+    color: #03543E;
+}
+
+.status-pending {
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+.status-deactivated {
+    background-color: #FEE2E2;
+    color: #991B1B;
+}
+
+.status-terminated {
+    background-color: #F3F4F6;
+    color: #1F2937;
+}

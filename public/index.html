@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memor'us - Gestão de Tenants</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <header class="mb-8 flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold text-purple-800">Memor'us - Gestor de Tenants</h1>
+        <p class="text-gray-600">Sistema de gestão de tenants para a plataforma Memor'Us</p>
+      </div>
+      <div class="flex items-center">
+        <span id="adminName" class="mr-4 text-gray-700">Admin</span>
+        <button id="logoutButton" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition">
+          Logout
+        </button>
+      </div>
+    </header>
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Formulário para criar novo tenant -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-purple-700">Criar Novo Tenant</h2>
+
+        <form id="createTenantForm">
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="tenantName">Nome do Tenant</label>
+            <input type="text" id="tenantName" name="name"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+              placeholder="Exemplo: Empresa ABC" required>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="tenantSubdomain">Subdomínio</label>
+            <div class="flex items-center">
+              <input type="text" id="tenantSubdomain" name="subdomain"
+                class="w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                placeholder="empresa-abc" required>
+              <span class="bg-gray-200 px-3 py-2 rounded-r-md text-gray-600">.memor-us.com</span>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">Apenas letras minúsculas, números e hífens</p>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Utilizador Administrador</label>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <input type="text" id="adminFirstName" name="firstName"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  placeholder="Nome" required>
+              </div>
+              <div>
+                <input type="text" id="adminLastName" name="lastName"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  placeholder="Apelido" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <input type="email" id="adminEmail" name="email"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+              placeholder="Email do administrador" required>
+          </div>
+
+          <div class="mb-6">
+            <input type="password" id="adminPassword" name="password"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+              placeholder="Senha do administrador" required>
+            <p class="text-sm text-gray-500 mt-1">Mínimo de 6 caracteres</p>
+          </div>
+
+          <input type="hidden" id="adminId" name="adminId" value="1">
+
+          <button type="submit"
+            class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition">
+            Criar Tenant
+          </button>
+        </form>
+
+        <div id="createStatus" class="mt-4 hidden px-4 py-2 rounded"></div>
+      </div>
+
+      <!-- Lista de tenants existentes -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-purple-700">Tenants Existentes</h2>
+          <div class="flex space-x-2">
+            <button id="refreshTenantsButton"
+              class="bg-gray-200 text-gray-700 p-2 rounded-md hover:bg-gray-300 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+            <div class="relative">
+              <input type="text" id="searchTenant" placeholder="Pesquisar tenant..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600">
+            </div>
+          </div>
+        </div>
+
+        <div id="tenantsLoading" class="text-center py-4">
+          <p>Carregando tenants...</p>
+        </div>
+
+        <div id="tenantsList" class="hidden">
+          <div class="overflow-auto" style="height: 480px;">
+            <table class="min-w-full bg-white">
+              <thead class="sticky top-0 bg-white">
+                <tr>
+                  <th
+                    class="px-6 py-3 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                    Nome
+                  </th>
+                  <th
+                    class="px-6 py-3 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                    Subdomínio
+                  </th>
+                  <th
+                    class="px-6 py-3 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th
+                    class="px-6 py-3 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                    Criado em
+                  </th>
+                  <th class="px-6 py-3 border-b border-gray-200 bg-gray-50"></th>
+                </tr>
+              </thead>
+              <tbody id="tenantsTableBody">
+                <!-- Os tenants serão inseridos aqui via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="noTenants" class="hidden text-center py-8">
+          <p class="text-gray-500">Nenhum tenant encontrado.</p>
+          <p class="text-gray-500">Crie um novo usando o formulário ao lado.</p>
+        </div>
+
+        <div id="loadError" class="hidden text-center py-8">
+          <p class="text-red-500">Erro ao carregar os tenants.</p>
+          <button id="retryButton" class="mt-2 bg-purple-600 text-white py-1 px-4 rounded-md hover:bg-purple-700">
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for editing tenant -->
+  <div id="editTenantModal"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-semibold mb-4 text-purple-700">Editar Tenant</h2>
+      <form id="editTenantForm">
+        <input type="hidden" id="editTenantId">
+
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2" for="editTenantName">Nome do Tenant</label>
+          <input type="text" id="editTenantName" name="name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+            required>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2" for="editTenantStatus">Status</label>
+          <select id="editTenantStatus" name="status"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600">
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="deactivated">Deactivated</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end space-x-3 mt-6">
+          <button type="button" id="cancelEditButton"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">
+            Cancelar
+          </button>
+          <button type="submit"
+            class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            Salvar Alterações
+          </button>
+        </div>
+      </form>
+      <div id="editStatus" class="mt-4 hidden px-4 py-2 rounded"></div>
+    </div>
+  </div>
+
+  <!-- Modal for tenant details -->
+  <div id="tenantDetailsModal"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-purple-700">Detalhes do Tenant</h2>
+        <button id="closeTenantDetailsButton" class="text-gray-500 hover:text-gray-700">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div id="tenantDetailsContent" class="space-y-4">
+        <!-- Tenant details will be inserted here -->
+      </div>
+
+      <div class="flex justify-end mt-6">
+        <button id="tenantDetailsCloseButton" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for delete confirmation -->
+  <div id="confirmDeleteModal"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-semibold mb-4 text-red-600">Confirmar Exclusão</h2>
+      <p class="mb-6 text-gray-700">Tem certeza de que deseja excluir o tenant "<span id="deleteTenantName"></span>"?
+        Esta ação não pode ser desfeita.</p>
+
+      <div class="flex justify-end space-x-3">
+        <button id="cancelDeleteButton"
+          class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">
+          Cancelar
+        </button>
+        <button id="confirmDeleteButton"
+          class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+          Excluir Tenant
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/tenant-manager.js"></script>
+</body>
+
+</html>
