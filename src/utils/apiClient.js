@@ -1,17 +1,27 @@
-const axios = require('axios');
-require('dotenv').config();
+// src/utils/apiClient.js
+// This file is kept for backward compatibility but is no longer used
+// All tenant operations are now performed directly
 
-const TENANT_APP_API_URL = process.env.TENANT_APP_API_URL || 'http://localhost:3000';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'your-secure-internal-api-key';
+import axios from "axios";
+import dotenv from "dotenv";
 
-const internalApiClient = axios.create({
-  baseURL: TENANT_APP_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': INTERNAL_API_KEY
-  }
-});
+dotenv.config();
 
-module.exports = {
-  internalApiClient
+// Create a dummy client that logs warnings when used
+const internalApiClient = {
+  post: async (url, data) => {
+    console.warn(
+      `API client post to ${url} is deprecated. Operations are now performed directly.`
+    );
+    console.warn("Data that would have been sent:", data);
+    return { data: { success: true } };
+  },
+  get: async (url) => {
+    console.warn(
+      `API client get to ${url} is deprecated. Operations are now performed directly.`
+    );
+    return { data: { success: true } };
+  },
 };
+
+export { internalApiClient };

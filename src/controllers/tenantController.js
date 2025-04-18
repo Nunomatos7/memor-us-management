@@ -1,6 +1,5 @@
-const tenantModel = require("../models/tenant");
-const { internalApiClient } = require("../utils/apiClient"); // Make sure this line is correct
-
+// src/controllers/tenantController.js
+import tenantModel from "../models/tenant.js";
 
 class TenantController {
   async createTenant(req, res) {
@@ -13,53 +12,50 @@ class TenantController {
 
       if (!/^[a-z0-9-]+$/.test(subdomain)) {
         return res.status(400).json({
-          error: "Subdomain must contain only lowercase letters, numbers, and hyphens",
+          error:
+            "Subdomain must contain only lowercase letters, numbers, and hyphens",
         });
       }
 
       const superAdminId =
         req.user && req.user.isSuperAdmin ? req.user.id : adminId;
 
-      // Create tenant record in tenant management database
+      // Create tenant record and schema in the database
       const tenantInfo = await tenantModel.createTenant(
         name,
         subdomain,
         superAdminId
       );
 
-      // Create schema and initialize tenant data using the Tenant Application API
-      const schemaName = subdomain.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-      
+      // After schema creation, initialize the tenant data directly
       try {
-        // First create the schema
-        await internalApiClient.post("/api/internal/schemas", { 
-          schemaName 
-        });
-        
-        // Then initialize tenant data
-        await internalApiClient.post("/api/internal/tenants/initialize", {
+        // Convert subdomain to schema name (same logic as in createTenant)
+        const schemaName = subdomain.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+
+        // Initialize the tenant data with the admin user
+        await tenantModel.initializeTenantData(
           schemaName,
           adminUser,
-          tenantInfo: { name, subdomain }
+          name,
+          subdomain
+        );
+
+        res.status(201).json({
+          success: true,
+          message: `Tenant ${name} (${subdomain}) created successfully`,
+          tenantId: tenantInfo.id,
         });
-        
-      } catch (apiError) {
-        console.error("Error communicating with Tenant Application API:", apiError.message);
-        
-        // If schema creation fails, we should revert the tenant creation
+      } catch (error) {
+        console.error("Error initializing tenant data:", error.message);
+
+        // If data initialization fails, revert the tenant creation
         await tenantModel.deleteTenant(tenantInfo.id, superAdminId);
-        
-        return res.status(500).json({ 
-          error: "Failed to create tenant schema",
-          details: apiError.response?.data?.error || apiError.message
+
+        return res.status(500).json({
+          error: "Failed to initialize tenant data",
+          details: error.message,
         });
       }
-
-      res.status(201).json({
-        success: true,
-        message: `Tenant ${name} (${subdomain}) created successfully`,
-        tenantId: tenantInfo.id,
-      });
     } catch (error) {
       console.error("Error in createTenant controller:", error);
       res.status(500).json({ error: error.message || "Internal server error" });
@@ -196,4 +192,4 @@ class TenantController {
   }
 }
 
-module.exports = new TenantController();
+export default new TenantController();

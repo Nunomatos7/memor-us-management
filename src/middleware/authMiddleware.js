@@ -1,5 +1,6 @@
-const auth = require("../utils/auth");
-const { tenantsPool } = require("../config/database");
+// src/middleware/authMiddleware.js
+import auth from "../utils/auth.js";
+import { prisma } from "../utils/prisma.js";
 
 /**
  * @swagger
@@ -24,10 +25,12 @@ async function logAuthFailure(message, details = {}) {
         ? ` - Details: ${JSON.stringify(details)}`
         : "";
 
-    await tenantsPool.query(
-      "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-      [systemAdminId, `Auth failure: ${message}${detailsStr}`]
-    );
+    await prisma.logs.create({
+      data: {
+        super_admins_id: systemAdminId,
+        action: `Auth failure: ${message}${detailsStr}`,
+      },
+    });
   } catch (error) {
     console.error("Error logging auth failure:", error);
     // Don't throw error, just continue
@@ -97,10 +100,12 @@ async function authenticate(req, res, next) {
 
   if (payload.isSuperAdmin) {
     try {
-      await tenantsPool.query(
-        "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-        [payload.id, `Authenticated access to ${req.method} ${req.path}`]
-      );
+      await prisma.logs.create({
+        data: {
+          super_admins_id: payload.id,
+          action: `Authenticated access to ${req.method} ${req.path}`,
+        },
+      });
     } catch (error) {
       console.error("Error logging super admin authentication:", error);
     }
@@ -178,4 +183,4 @@ async function canAccessTenant(req, res, next) {
   return next();
 }
 
-module.exports = { authenticate, isSuperAdmin, canAccessTenant, isAdmin };
+export { authenticate, isSuperAdmin, canAccessTenant, isAdmin };

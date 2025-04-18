@@ -1,16 +1,18 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+// src/config/database.js
+import pkg from "pg";
+const { Pool } = pkg;
+import dotenv from "dotenv";
 
+dotenv.config();
+
+// This pool is kept for backward compatibility
+// Prefer using prisma client directly
 const tenantsPool = new Pool({
-  host: process.env.TENANTS_DB_HOST,
-  database: process.env.TENANTS_DB_NAME,
-  user: process.env.TENANTS_DB_USER,
-  password: process.env.TENANTS_DB_PASSWORD,
-  port: process.env.TENANTS_DB_PORT,
+  connectionString: process.env.DATABASE_URL,
 });
 
 tenantsPool.on("error", (err) => {
   console.error("Unexpected error on tenants pool", err);
 });
 
-module.exports = { tenantsPool };
+export { tenantsPool };

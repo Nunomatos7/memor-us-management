@@ -1,7 +1,7 @@
-const { tenantsPool } = require("../config/database");
-const auth = require("../utils/auth");
-const crypto = require("crypto");
-const tenantModel = require("../models/tenant");
+// src/controllers/adminController.js
+import { prisma } from "../utils/prisma.js";
+import auth from "../utils/auth.js";
+import crypto from "crypto";
 
 class AdminController {
   async login(req, res) {
@@ -19,19 +19,25 @@ class AdminController {
         .update(password)
         .digest("hex");
 
-      const result = await tenantsPool.query(
-        `SELECT id, name, email 
-         FROM super_admins 
-         WHERE email = $1 AND password_hash = $2 AND deleted_at IS NULL`,
-        [email, hashedPassword]
-      );
+      // Find admin with matching email and password
+      const admin = await prisma.super_admins.findFirst({
+        where: {
+          email,
+          password_hash: hashedPassword,
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
 
-      if (result.rows.length === 0) {
+      if (!admin) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      const admin = result.rows[0];
-
+      // Generate JWT token
       const token = auth.generateToken({
         id: admin.id,
         name: admin.name,
@@ -39,10 +45,13 @@ class AdminController {
         isSuperAdmin: true,
       });
 
-      await tenantsPool.query(
-        "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-        [admin.id, `Admin login: ${admin.name} (${admin.email})`]
-      );
+      // Log the login action
+      await prisma.logs.create({
+        data: {
+          super_admins_id: admin.id,
+          action: `Admin login: ${admin.name} (${admin.email})`,
+        },
+      });
 
       return res.json({
         token,
@@ -63,21 +72,32 @@ class AdminController {
     try {
       const adminId = req.user.id;
 
-      const result = await tenantsPool.query(
-        "SELECT id, name, email, created_at FROM super_admins WHERE id = $1",
-        [adminId]
-      );
+      // Get admin profile
+      const admin = await prisma.super_admins.findUnique({
+        where: {
+          id: adminId,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          created_at: true,
+        },
+      });
 
-      if (result.rows.length === 0) {
+      if (!admin) {
         return res.status(404).json({ error: "Admin not found" });
       }
 
-      await tenantsPool.query(
-        "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-        [adminId, "Viewed admin profile"]
-      );
+      // Log the profile view
+      await prisma.logs.create({
+        data: {
+          super_admins_id: adminId,
+          action: "Viewed admin profile",
+        },
+      });
 
-      return res.json(result.rows[0]);
+      return res.json(admin);
     } catch (error) {
       console.error("Error fetching admin profile:", error);
       return res.status(500).json({ error: "Internal server error" });
@@ -93,26 +113,34 @@ class AdminController {
         return res.status(400).json({ error: "Name and email are required" });
       }
 
-      await tenantsPool.query("BEGIN");
+      // Get current admin data
+      const admin = await prisma.super_admins.findUnique({
+        where: {
+          id: adminId,
+        },
+        select: {
+          id: true,
+          password_hash: true,
+        },
+      });
 
-      const adminResult = await tenantsPool.query(
-        "SELECT id, password_hash FROM super_admins WHERE id = $1",
-        [adminId]
-      );
-
-      if (adminResult.rows.length === 0) {
-        await tenantsPool.query("ROLLBACK");
+      if (!admin) {
         return res.status(404).json({ error: "Admin not found" });
       }
 
+      // Prepare update data
+      const updateData = {
+        name,
+        email,
+        updated_at: new Date(),
+      };
+
+      // Handle password change if requested
       if (newPassword) {
         if (!currentPassword) {
-          await tenantsPool.query("ROLLBACK");
-          return res
-            .status(400)
-            .json({
-              error: "Current password is required to set a new password",
-            });
+          return res.status(400).json({
+            error: "Current password is required to set a new password",
+          });
         }
 
         const currentHashedPassword = crypto
@@ -120,8 +148,7 @@ class AdminController {
           .update(currentPassword)
           .digest("hex");
 
-        if (currentHashedPassword !== adminResult.rows[0].password_hash) {
-          await tenantsPool.query("ROLLBACK");
+        if (currentHashedPassword !== admin.password_hash) {
           return res
             .status(401)
             .json({ error: "Current password is incorrect" });
@@ -132,40 +159,43 @@ class AdminController {
           .update(newPassword)
           .digest("hex");
 
-        await tenantsPool.query(
-          "UPDATE super_admins SET name = $1, email = $2, password_hash = $3, updated_at = NOW() WHERE id = $4",
-          [name, email, newHashedPassword, adminId]
-        );
-
-        await tenantsPool.query(
-          "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-          [
-            adminId,
-            `Updated admin profile with password change: ${name} (${email})`,
-          ]
-        );
-      } else {
-        await tenantsPool.query(
-          "UPDATE super_admins SET name = $1, email = $2, updated_at = NOW() WHERE id = $3",
-          [name, email, adminId]
-        );
-
-        await tenantsPool.query(
-          "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-          [adminId, `Updated admin profile: ${name} (${email})`]
-        );
+        updateData.password_hash = newHashedPassword;
       }
 
-      await tenantsPool.query("COMMIT");
+      // Update admin profile
+      await prisma.super_admins.update({
+        where: {
+          id: adminId,
+        },
+        data: updateData,
+      });
 
-      const updatedResult = await tenantsPool.query(
-        "SELECT id, name, email, created_at, updated_at FROM super_admins WHERE id = $1",
-        [adminId]
-      );
+      // Log the profile update
+      await prisma.logs.create({
+        data: {
+          super_admins_id: adminId,
+          action: newPassword
+            ? `Updated admin profile with password change: ${name} (${email})`
+            : `Updated admin profile: ${name} (${email})`,
+        },
+      });
 
-      return res.json(updatedResult.rows[0]);
+      // Get updated admin data to return
+      const updatedAdmin = await prisma.super_admins.findUnique({
+        where: {
+          id: adminId,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      return res.json(updatedAdmin);
     } catch (error) {
-      await tenantsPool.query("ROLLBACK");
       console.error("Error updating admin profile:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
@@ -176,28 +206,49 @@ class AdminController {
       const adminId = req.user.id;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
-      const offset = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-      await tenantsPool.query(
-        "INSERT INTO logs(super_admins_id, action) VALUES($1, $2)",
-        [adminId, `Viewed system logs (page ${page}, limit ${limit})`]
-      );
+      // Log this action
+      await prisma.logs.create({
+        data: {
+          super_admins_id: adminId,
+          action: `Viewed system logs (page ${page}, limit ${limit})`,
+        },
+      });
 
-      const result = await tenantsPool.query(
-        `SELECT l.id, l.action, l.performed_at, 
-                s.id as admin_id, s.name as admin_name, s.email as admin_email
-         FROM logs l
-         LEFT JOIN super_admins s ON l.super_admins_id = s.id
-         ORDER BY l.performed_at DESC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
-      );
+      // Get logs with admin info
+      const logs = await prisma.logs.findMany({
+        include: {
+          super_admins: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          performed_at: "desc",
+        },
+        take: limit,
+        skip,
+      });
 
-      const countResult = await tenantsPool.query("SELECT COUNT(*) FROM logs");
-      const totalLogs = parseInt(countResult.rows[0].count);
+      // Format logs to match the expected response structure
+      const formattedLogs = logs.map((log) => ({
+        id: log.id,
+        action: log.action,
+        performed_at: log.performed_at,
+        admin_id: log.super_admins?.id,
+        admin_name: log.super_admins?.name,
+        admin_email: log.super_admins?.email,
+      }));
+
+      // Count total logs for pagination
+      const totalLogs = await prisma.logs.count();
 
       return res.json({
-        logs: result.rows,
+        logs: formattedLogs,
         pagination: {
           page,
           limit,
@@ -212,4 +263,4 @@ class AdminController {
   }
 }
 
-module.exports = new AdminController();
+export default new AdminController();

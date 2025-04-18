@@ -1,15 +1,23 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const path = require("path");
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpecs = require('./config/swagger');
-require("dotenv").config();
+// src/index.js
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import path from "path";
+import { fileURLToPath } from "url";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpecs from "./config/swagger.js";
+import dotenv from "dotenv";
 
-const tenantController = require("./controllers/tenantController");
-const adminController = require("./controllers/adminController");
+import tenantController from "./controllers/tenantController.js";
+import adminController from "./controllers/adminController.js";
 
-const { authenticate, isSuperAdmin } = require("./middleware/authMiddleware");
+import { authenticate, isSuperAdmin } from "./middleware/authMiddleware.js";
+
+// Get dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -30,7 +38,11 @@ app.use((req, res, next) => {
 });
 
 // Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { explorer: true }));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpecs, { explorer: true })
+);
 
 // Static files
 app.use(express.static(path.join(__dirname, "../public")));
@@ -39,16 +51,54 @@ app.use(express.static(path.join(__dirname, "../public")));
 app.post("/api/admin/login", adminController.login);
 
 // Tenant management routes
-app.get("/api/tenants", authenticate, isSuperAdmin, tenantController.getAllTenants);
-app.get("/api/tenants/check-subdomain/:subdomain", tenantController.checkSubdomain);
-app.post("/api/tenants", authenticate, isSuperAdmin, tenantController.createTenant);
-app.get("/api/tenants/:id", authenticate, isSuperAdmin, tenantController.getTenantById);
-app.put("/api/tenants/:id", authenticate, isSuperAdmin, tenantController.updateTenant);
-app.delete("/api/tenants/:id", authenticate, isSuperAdmin, tenantController.deleteTenant);
+app.get(
+  "/api/tenants",
+  authenticate,
+  isSuperAdmin,
+  tenantController.getAllTenants
+);
+app.get(
+  "/api/tenants/check-subdomain/:subdomain",
+  tenantController.checkSubdomain
+);
+app.post(
+  "/api/tenants",
+  authenticate,
+  isSuperAdmin,
+  tenantController.createTenant
+);
+app.get(
+  "/api/tenants/:id",
+  authenticate,
+  isSuperAdmin,
+  tenantController.getTenantById
+);
+app.put(
+  "/api/tenants/:id",
+  authenticate,
+  isSuperAdmin,
+  tenantController.updateTenant
+);
+app.delete(
+  "/api/tenants/:id",
+  authenticate,
+  isSuperAdmin,
+  tenantController.deleteTenant
+);
 
 // Admin profile routes
-app.get("/api/admin/profile", authenticate, isSuperAdmin, adminController.getProfile);
-app.put("/api/admin/profile", authenticate, isSuperAdmin, adminController.updateProfile);
+app.get(
+  "/api/admin/profile",
+  authenticate,
+  isSuperAdmin,
+  adminController.getProfile
+);
+app.put(
+  "/api/admin/profile",
+  authenticate,
+  isSuperAdmin,
+  adminController.updateProfile
+);
 app.get("/api/admin/logs", authenticate, isSuperAdmin, adminController.getLogs);
 
 // Frontend routes
@@ -63,7 +113,7 @@ app.get("/", (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
-  
+
   if (err.name === "JsonWebTokenError") {
     return res.status(401).json({ error: "Invalid token" });
   }
@@ -82,5 +132,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Tenant Manager API running on port ${PORT}`);
   console.log(`Open http://localhost:${PORT} in your browser`);
-  console.log(`API Documentation available at http://localhost:${PORT}/api-docs`);
+  console.log(
+    `API Documentation available at http://localhost:${PORT}/api-docs`
+  );
 });

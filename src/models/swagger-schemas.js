@@ -40,7 +40,7 @@
  *         status: "active"
  *         created_at: "2025-04-15T12:00:00Z"
  *         updated_at: "2025-04-15T12:00:00Z"
- *     
+ *
  *     AdminUser:
  *       type: object
  *       required:
@@ -71,7 +71,7 @@
  *         email: "admin@memor-us.com"
  *         created_at: "2025-04-15T12:00:00Z"
  *         updated_at: "2025-04-15T12:00:00Z"
- *     
+ *
  *     Log:
  *       type: object
  *       properties:
@@ -101,7 +101,7 @@
  *         admin_id: 1
  *         admin_name: "Admin User"
  *         admin_email: "admin@memor-us.com"
- *     
+ *
  *     TenantCreation:
  *       type: object
  *       required:
@@ -150,7 +150,7 @@
  *           lastName: "Doe"
  *           email: "admin@company-abc.com"
  *           password: "securePassword"
- *     
+ *
  *     TenantUpdate:
  *       type: object
  *       required:
@@ -166,7 +166,7 @@
  *       example:
  *         name: "Company ABC Updated"
  *         status: "active"
- *     
+ *
  *     AdminLogin:
  *       type: object
  *       required:
@@ -184,7 +184,7 @@
  *       example:
  *         email: "admin@memor-us.com"
  *         password: "securePassword"
- *     
+ *
  *     AdminProfileUpdate:
  *       type: object
  *       required:
@@ -209,7 +209,7 @@
  *         email: "admin@memor-us.com"
  *         currentPassword: "oldPassword"
  *         newPassword: "newSecurePassword"
- *     
+ *
  *     Error:
  *       type: object
  *       properties:
@@ -222,7 +222,7 @@
  *       example:
  *         error: "Internal server error"
  *         message: "Error details"
- *     
+ *
  *     Success:
  *       type: object
  *       properties:
