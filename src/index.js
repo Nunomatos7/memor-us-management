@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpecs from "./config/swagger.js";
 import dotenv from "dotenv";
+import { prisma } from "./utils/prisma.js";
 
 import tenantController from "./controllers/tenantController.js";
 import adminController from "./controllers/adminController.js";
@@ -21,6 +22,26 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Check database connections on startup
+async function checkDatabaseConnections() {
+  try {
+    // Check Tenant Management Database connection
+    await prisma.$queryRaw`SELECT 1`;
+    console.log("✅ Connected to tenant management database");
+
+    // Check Application Database connection (by running a simple query)
+    if (!process.env.APP_DATABASE_URL) {
+      console.warn(
+        "⚠️ APP_DATABASE_URL not set, some functionality may not work properly"
+      );
+    } else {
+      console.log("ℹ️ Application database URL configured");
+    }
+  } catch (error) {
+    console.error("❌ Database connection error:", error);
+  }
+}
 
 // Middleware
 app.use(
@@ -129,10 +150,20 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Tenant Manager API running on port ${PORT}`);
   console.log(`Open http://localhost:${PORT} in your browser`);
   console.log(
     `API Documentation available at http://localhost:${PORT}/api-docs`
   );
+
+  // Check database connections
+  await checkDatabaseConnections();
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("Shutting down gracefully...");
+  await prisma.$disconnect();
+  process.exit(0);
 });

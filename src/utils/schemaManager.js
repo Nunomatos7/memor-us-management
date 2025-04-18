@@ -20,37 +20,69 @@ class SchemaManager {
       "utf8"
     );
 
-    // Initialize the main Prisma client
+    // Initialize the main Prisma client for tenant management
     this.prisma = new PrismaClient();
+
+    // Get the application database URL
+    this.APP_DATABASE_URL =
+      process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
+    if (!this.APP_DATABASE_URL) {
+      console.warn(
+        "APP_DATABASE_URL not set, will fall back to DATABASE_URL for schema operations"
+      );
+    }
   }
 
-  // Create schema directly in the database without using external API
+  // Create schema directly in the application database
   async createSchema(schemaName) {
     console.log(`Creating schema: ${schemaName}`);
 
     try {
-      const DATABASE_URL = process.env.DATABASE_URL;
-      if (!DATABASE_URL) {
-        throw new Error("DATABASE_URL environment variable is not set");
+      // Use APP_DATABASE_URL for schema operations
+      const dbUrl = this.APP_DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error("No database URL available for application database");
       }
 
-      // Create a connection to the database
+      // Create a connection to the application database
       const pool = new Pool({
-        connectionString: DATABASE_URL,
+        connectionString: dbUrl,
       });
 
       try {
-        // Create the schema
+        // First, create the schema
         await pool.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
-        console.log(`Schema ${schemaName} created.`);
+        console.log(`Schema ${schemaName} created in application database.`);
 
-        // Set the search path to the new schema and run the tables script
-        const tablesResult = await pool.query(`
-          SET search_path TO "${schemaName}";
-          ${this.tablesScript}
-        `);
+        // Execute each SQL statement individually to ensure they all run
+        // Split the SQL script by semicolons, but handle those inside parentheses correctly
+        const statements = this.splitSqlStatements(this.tablesScript);
+
+        for (const statement of statements) {
+          if (statement.trim()) {
+            // Set search path for each statement and execute it
+            await pool.query(
+              `SET search_path TO "${schemaName}"; ${statement}`
+            );
+          }
+        }
 
         console.log(`Tables created in schema ${schemaName}`);
+
+        // Verify tables were created
+        const tableResult = await pool.query(
+          `
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = $1 AND table_name = 'users'
+        `,
+          [schemaName]
+        );
+
+        if (tableResult.rows.length === 0) {
+          throw new Error(`Failed to create tables in schema ${schemaName}`);
+        }
+
         return { success: true, schema: schemaName };
       } finally {
         // Make sure to release the pool
@@ -62,17 +94,50 @@ class SchemaManager {
     }
   }
 
+  // Helper method to split SQL statements properly
+  splitSqlStatements(sqlScript) {
+    // This is a simple approach - for more complex SQL you might need a proper parser
+    const statements = [];
+    let currentStatement = "";
+    let parenthesesCount = 0;
+
+    // Split by characters
+    for (let i = 0; i < sqlScript.length; i++) {
+      const char = sqlScript[i];
+
+      // Track parentheses to avoid splitting inside them
+      if (char === "(") parenthesesCount++;
+      if (char === ")") parenthesesCount--;
+
+      // Add character to current statement
+      currentStatement += char;
+
+      // If we hit a semicolon and we're not inside parentheses, end the statement
+      if (char === ";" && parenthesesCount === 0) {
+        statements.push(currentStatement);
+        currentStatement = "";
+      }
+    }
+
+    // Add any remaining statement
+    if (currentStatement.trim()) {
+      statements.push(currentStatement);
+    }
+
+    return statements;
+  }
+
   // This method verifies if the schema exists and has the required tables
   async verifySchemaSetup(schemaName) {
     try {
-      const DATABASE_URL = process.env.DATABASE_URL;
-      if (!DATABASE_URL) {
-        throw new Error("DATABASE_URL environment variable is not set");
+      const dbUrl = this.APP_DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error("No database URL available for application database");
       }
 
-      // Create a connection to the database
+      // Create a connection to the application database
       const pool = new Pool({
-        connectionString: DATABASE_URL,
+        connectionString: dbUrl,
       });
 
       try {
@@ -120,17 +185,21 @@ class SchemaManager {
   // Helper method to execute SQL directly in a specific schema
   async executeSqlInSchema(schemaName, sql, params = []) {
     try {
-      const DATABASE_URL = process.env.DATABASE_URL;
-      if (!DATABASE_URL) {
-        throw new Error("DATABASE_URL environment variable is not set");
+      const dbUrl = this.APP_DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error("No database URL available for application database");
       }
 
-      // Create a connection to the database with the specified schema
+      // Create a connection to the application database with the specified schema
       const pool = new Pool({
-        connectionString: `${DATABASE_URL}?schema=${schemaName}`,
+        connectionString: dbUrl,
       });
 
       try {
+        // Set search path before executing SQL
+        await pool.query(`SET search_path TO "${schemaName}"`);
+
+        // Execute the actual query
         const result = await pool.query(sql, params);
         return result;
       } finally {
@@ -150,16 +219,18 @@ class SchemaManager {
     console.log(`Getting connection for schema: ${schemaName}`);
 
     try {
-      // Use the DATABASE_URL from .env
-      const DATABASE_URL = process.env.DATABASE_URL;
-      if (!DATABASE_URL) {
-        throw new Error("DATABASE_URL environment variable is not set");
+      const dbUrl = this.APP_DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error("No database URL available for application database");
       }
 
       // Create a connection pool for the specific schema
       const pool = new Pool({
-        connectionString: `${DATABASE_URL}?schema=${schemaName}`,
+        connectionString: dbUrl,
       });
+
+      // Set the search path right away
+      await pool.query(`SET search_path TO "${schemaName}"`);
 
       return pool;
     } catch (error) {

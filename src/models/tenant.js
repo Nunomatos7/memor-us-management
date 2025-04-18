@@ -78,7 +78,9 @@ class TenantModel {
 
   async getAllTenants() {
     try {
-      return await prisma.tenants.findMany({
+      console.log("Fetching all tenants from database...");
+
+      const tenants = await prisma.tenants.findMany({
         where: {
           deleted_at: null,
         },
@@ -86,6 +88,9 @@ class TenantModel {
           created_at: "desc",
         },
       });
+
+      console.log(`Found ${tenants.length} active tenants`);
+      return tenants;
     } catch (error) {
       console.error("Error getting all tenants:", error);
       throw error;
@@ -161,6 +166,7 @@ class TenantModel {
     try {
       // Verify schema setup
       const schemaStatus = await schemaManager.verifySchemaSetup(schemaName);
+      console.log(`Schema status for ${schemaName}:`, schemaStatus);
 
       if (!schemaStatus.users_exists) {
         console.error(
@@ -182,30 +188,35 @@ class TenantModel {
         .update(password)
         .digest("hex");
 
-      // Use direct SQL execution for tenant data initialization
-      // First create the user
-      const userResult = await schemaManager.executeSqlInSchema(
-        schemaName,
-        `INSERT INTO users(
-          first_name, last_name, email, password, tenant_subdomain, teams_id
-        ) VALUES($1, $2, $3, $4, $5, NULL)
-        RETURNING id;`,
-        [firstName, lastName, email, hashedPassword, subdomain]
-      );
+      // Get a connection with the correct schema set
+      const pool = await schemaManager.getTenantConnection(schemaName);
 
-      const userId = userResult.rows[0].id;
+      try {
+        // First create the user
+        const userResult = await pool.query(
+          `INSERT INTO users(
+            first_name, last_name, email, password, tenant_subdomain, teams_id
+          ) VALUES($1, $2, $3, $4, $5, NULL)
+          RETURNING id;`,
+          [firstName, lastName, email, hashedPassword, subdomain]
+        );
 
-      // Then create the admin role
-      await schemaManager.executeSqlInSchema(
-        schemaName,
-        "INSERT INTO roles(title, user_id) VALUES($1, $2);",
-        ["admin", userId]
-      );
+        const userId = userResult.rows[0].id;
 
-      console.log(
-        `Successfully initialized tenant data for ${schemaName} with admin user ID: ${userId}`
-      );
-      return { success: true, userId };
+        // Then create the admin role
+        await pool.query("INSERT INTO roles(title, user_id) VALUES($1, $2);", [
+          "admin",
+          userId,
+        ]);
+
+        console.log(
+          `Successfully initialized tenant data for ${schemaName} with admin user ID: ${userId}`
+        );
+        return { success: true, userId };
+      } finally {
+        // Make sure to release the pool
+        pool.end();
+      }
     } catch (error) {
       console.error("Error initializing tenant data:", error);
       throw error;
