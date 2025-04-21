@@ -27,7 +27,7 @@ class TenantController {
         superAdminId
       );
 
-      // After schema creation, initialize the tenant data directly
+      // After tenant creation, initialize the tenant data through the tenant service
       try {
         // Convert subdomain to schema name (same logic as in createTenant)
         const schemaName = subdomain.replace(/[^a-z0-9]/gi, "_").toLowerCase();

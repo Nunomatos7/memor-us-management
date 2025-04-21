@@ -2,6 +2,7 @@
 import { prisma } from "../utils/prisma.js";
 import schemaManager from "../utils/schemaManager.js";
 import crypto from "crypto";
+import axios from "axios";
 
 class TenantModel {
   async createTenant(name, subdomain, adminId) {
@@ -164,59 +165,48 @@ class TenantModel {
 
   async initializeTenantData(schemaName, adminUser, tenantName, subdomain) {
     try {
-      // Verify schema setup
-      const schemaStatus = await schemaManager.verifySchemaSetup(schemaName);
-      console.log(`Schema status for ${schemaName}:`, schemaStatus);
+      // Instead of direct initialization, make API call to tenant service
+      const tenantServiceUrl =
+        process.env.TENANT_SERVICE_URL || "http://localhost:3000";
+      const apiKey = process.env.INTERNAL_API_KEY;
 
-      if (!schemaStatus.users_exists) {
-        console.error(
-          `Schema ${schemaName} is missing required tables. Attempting to recreate...`
-        );
-        await schemaManager.createSchema(schemaName);
+      if (!tenantServiceUrl || !apiKey) {
+        throw new Error("Tenant service URL or API key is not configured");
+      }
 
-        const verifyAgain = await schemaManager.verifySchemaSetup(schemaName);
-        if (!verifyAgain.users_exists) {
-          throw new Error(
-            `Failed to create required tables in schema ${schemaName}`
-          );
+      console.log(
+        `Requesting tenant service to initialize schema ${schemaName}`
+      );
+
+      const response = await axios.post(
+        `${tenantServiceUrl}/api/internal/tenants/initialize`,
+        {
+          schemaName,
+          adminUser,
+          tenantInfo: {
+            name: tenantName,
+            subdomain,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": apiKey,
+          },
         }
+      );
+
+      if (!response.data || !response.data.success) {
+        throw new Error(
+          "Failed to initialize tenant: " +
+            (response.data?.error || "Unknown error")
+        );
       }
 
-      const { firstName, lastName, email, password } = adminUser;
-      const hashedPassword = crypto
-        .createHash("sha256")
-        .update(password)
-        .digest("hex");
-
-      // Get a connection with the correct schema set
-      const pool = await schemaManager.getTenantConnection(schemaName);
-
-      try {
-        // First create the user
-        const userResult = await pool.query(
-          `INSERT INTO users(
-            first_name, last_name, email, password, tenant_subdomain, teams_id
-          ) VALUES($1, $2, $3, $4, $5, NULL)
-          RETURNING id;`,
-          [firstName, lastName, email, hashedPassword, subdomain]
-        );
-
-        const userId = userResult.rows[0].id;
-
-        // Then create the admin role
-        await pool.query("INSERT INTO roles(title, user_id) VALUES($1, $2);", [
-          "admin",
-          userId,
-        ]);
-
-        console.log(
-          `Successfully initialized tenant data for ${schemaName} with admin user ID: ${userId}`
-        );
-        return { success: true, userId };
-      } finally {
-        // Make sure to release the pool
-        pool.end();
-      }
+      console.log(
+        `Tenant service successfully initialized tenant data for ${schemaName}`
+      );
+      return response.data;
     } catch (error) {
       console.error("Error initializing tenant data:", error);
       throw error;
