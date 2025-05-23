@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "swagger-autogen": "node src/swagger.js"
+    "swagger-autogen": "node src/swagger.js",
+    "postinstall": "node migrate.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.6.0",

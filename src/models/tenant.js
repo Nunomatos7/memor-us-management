@@ -165,9 +165,7 @@ class TenantModel {
 
   async initializeTenantData(schemaName, adminUser, tenantName, subdomain) {
     try {
-      // Instead of direct initialization, make API call to tenant service
-      const tenantServiceUrl =
-        process.env.TENANT_SERVICE_URL || "http://localhost:3000";
+      const tenantServiceUrl = process.env.TENANT_SERVICE_URL;
       const apiKey = process.env.INTERNAL_API_KEY;
 
       if (!tenantServiceUrl || !apiKey) {
