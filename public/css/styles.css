@@ -1,20 +1,100 @@
-/* Estilos adicionais além do Tailwind CSS */
-.status-active {
-    background-color: #DEF7EC;
-    color: #03543E;
+/* Custom scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #9333ea #f3f4f6;
 }
 
-.status-pending {
-    background-color: #FEF3C7;
-    color: #92400E;
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.status-deactivated {
-    background-color: #FEE2E2;
-    color: #991B1B;
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
 }
 
-.status-terminated {
-    background-color: #F3F4F6;
-    color: #1F2937;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #9333ea;
+  border-radius: 4px;
+  border: 1px solid #f3f4f6;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: #f3f4f6;
+}
+
+/* Custom responsive styles */
+@media (max-width: 768px) {
+  .mobile-table {
+    display: none;
+  }
+  .mobile-cards {
+    display: block;
+  }
+  .tenant-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: white;
+  }
+  .tenant-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+  .tenant-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .tenant-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .status-active {
+    background-color: #dcfce7;
+    color: #166534;
+  }
+  .status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+  .status-deactivated {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+}
+@media (min-width: 769px) {
+  .mobile-cards {
+    display: none;
+  }
+  .mobile-table {
+    display: block;
+  }
+}
+
+/* Improved modal responsiveness */
+@media (max-width: 640px) {
+  .modal-container {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
 }
