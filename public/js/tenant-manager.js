@@ -476,7 +476,7 @@ function showEditTenantModal(tenantId) {
   }
 
   const editStatus = document.getElementById("editStatus");
-  editStatus.textContent = "Carregando dados do tenant...";
+  editStatus.textContent = "A carregar dados do tenant...";
   editStatus.classList.remove(
     "hidden",
     "bg-red-100",
@@ -615,7 +615,7 @@ function viewTenantDetails(tenantId) {
 
   const detailsContent = document.getElementById("tenantDetailsContent");
   detailsContent.innerHTML =
-    '<p class="text-center">Carregando detalhes...</p>';
+    '<p class="text-center">A carregar detalhes...</p>';
 
   document.getElementById("tenantDetailsModal").classList.remove("hidden");
 
