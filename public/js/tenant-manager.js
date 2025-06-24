@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-b border-gray-200">
               <div class="text-sm leading-5 text-gray-500">
-                <a href="http://${tenant.subdomain}.${window.location.hostname}" target="_blank" 
+                <a href="http://${tenant.subdomain}.memor-us.com" target="_blank" 
                    class="text-purple-600 hover:text-purple-900">
                   ${tenant.subdomain}
                 </a>
